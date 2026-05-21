@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perceptual Blur Modeling Pipeline</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --step1: #3b82f6;
+            --step2: #10b981;
+            --step3: #f59e0b;
+            --step4: #ef4444;
+            --text-main: #1e293b;
+            --text-muted: #475569;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #0f172a;
+        }
+
+        header p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Pipeline Navigation */
+        .pipeline-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1100px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .pipeline-nav::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background-color: var(--border);
+            z-index: 0;
+            transform: translateY(-50%);
+        }
+
+        .step-btn {
+            position: relative;
+            z-index: 1;
+            background: var(--card-bg);
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            padding: 15px 25px;
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 220px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .step-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .step-btn.active[data-step="1"] { border-color: var(--step1); color: var(--step1); }
+        .step-btn.active[data-step="2"] { border-color: var(--step2); color: var(--step2); }
+        .step-btn.active[data-step="3"] { border-color: var(--step3); color: var(--step3); }
+        .step-btn.active[data-step="4"] { border-color: var(--step4); color: var(--step4); }
+
+        /* Content Display Area */
+        .content-container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            min-height: 500px;
+            position: relative;
+        }
+
+        .step-content {
+            display: none;
+            padding: 40px;
+            animation: fadeIn 0.4s ease-in-out forwards;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .content-header {
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        .content-header h2 {
+            font-size: 26px;
+            margin: 0;
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .info-card {
+            background: var(--bg-color);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .info-card h3 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #0f172a;
+            margin-bottom: 15px;
+        }
+
+        .info-card ul {
+            padding-left: 20px;
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        .info-card li {
+            margin-bottom: 8px;
+        }
+
+        .math-block {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        code {
+            background: #e2e8f0;
+            color: #b91c1c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+            font-size: 13.5px;
+        }
+        
+        .architecture-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            margin-top: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            display: block;
+        }
+
+        /* Specific borders for info cards based on step */
+        #content-1 .info-card { border-left-color: var(--step1); }
+        #content-2 .info-card { border-left-color: var(--step2); }
+        #content-3 .info-card { border-left-color: var(--step3); }
+        #content-4 .info-card { border-left-color: var(--step4); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Perceptually Guided Blur Modeling Pipeline</h1>
+        <p>Interactive methodology for the simulation, psychophysical measurement, predictive modeling, and correction of visual blur artifacts in AR systems.</p>
+    </header>
+
+    <div class="pipeline-nav">
+        <button class="step-btn active" data-step="1">1. Stimulus Simulation</button>
+        <button class="step-btn" data-step="2">2. Psychophysics</button>
+        <button class="step-btn" data-step="3">3. Predictive Modeling</button>
+        <button class="step-btn" data-step="4">4. Guide Correction</button>
+    </div>
+
+    <div class="content-container">
+        <div id="content-1" class="step-content active">
+            <div class="content-header">
+                <h2 style="color: var(--step1);">1. Stimulus Simulation</h2>
+                <p>Generating a highly controlled, mathematically defined dataset of blur artifacts applied to standardized reference images.</p>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="info-card">
+                    <h3>Reference Dataset & Format</h3>
+                    <ul>
+                        <li>Select 50 sharp reference images (text, strong edges, faces, natural scenes).</li>
+                        <li>Normalize resolution (e.g., <code>512x512</code> pixels) and luminance range.</li>
+                        <li>This strict baseline ensures any change in perception is strictly caused by the blur operator, not image variance.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Blur Class 1: Defocus Blur</h3>
+                    <ul>
+                        <li>Approximates optical defocus using an isotropic Gaussian kernel.</li>
+                        <li>Parameterized strictly by <code>&sigma;</code> (spread of the Gaussian).</li>
+                    </ul>
+                    <div class="math-block">
+                        $$G(x,y)=\frac{1}{2\pi\sigma^{2}}e^{-\frac{x^{2}+y^{2}}{2\sigma^{2}}}$$
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>Blur Class 2: Directional Motion Blur</h3>
+                    <ul>
+                        <li>Simulates display latency or object movement smearing.</li>
+                        <li>Generated by convolving with a line-shaped kernel.</li>
+                        <li>Parameterized by <b>Length (L)</b> in pixels and <b>Orientation Angle (&theta;)</b>.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Blur Class 3: Rendering/Resampling Blur</h3>
+                    <ul>
+                        <li>Simulates artifacts from digital scaling pipelines.</li>
+                        <li>Generated via downsample-then-upsample operations.</li>
+                        <li>Parameterized by the <b>downsample scaling factor</b>.</li>
+                        <li>Dataset Output: <code>(image_id, blur_type, blur_magnitude)</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-2" class="step-content">
+            <div class="content-header">
+                <h2 style="color: var(--step2);">2. Psychophysical Measurement</h2>
+                <p>Measuring human absolute detection thresholds and perceived perceptual severity mapping.</p>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="info-card">
+                    <h3>Task 1: Absolute Detection (2AFC)</h3>
+                    <ul>
+                        <li><b>Goal:</b> Find the minimum blur magnitude reliably visible.</li>
+                        <li><b>Procedure:</b> Observers view Interval 1 and Interval 2 (randomized sharp vs. blurred) and select the blurrier interval.</li>
+                        <li><b>Trials:</b> Approx 120 trials per participant (6 blur levels &times; 20 repetitions).</li>
+                        <li><b>Data:</b> Proportion correct at each blur magnitude.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Psychometric Function Fitting</h3>
+                    <ul>
+                        <li>Performance is modeled with a cumulative Gaussian curve using maximum likelihood estimation.</li>
+                    </ul>
+                    <div class="math-block">
+                        $$P(correct|x)=\gamma+(1-\gamma-\lambda)\Phi\left(\frac{x-\mu}{\sigma}\right)$$
+                    </div>
+                    <ul>
+                        <li><code>&gamma;</code> = 0.5 (guessing rate)</li>
+                        <li><code>&lambda;</code> = lapse rate (0 - 0.05)</li>
+                        <li><code>&mu;</code> = threshold parameter (~75% correct performance)</li>
+                        <li><code>&sigma;</code> = slope/sensitivity parameter</li>
+                    </ul>
+                </div>
+
+                <div class="info-card" style="grid-column: span 2;">
+                    <h3>Task 2: Cross-Type Blur Matching</h3>
+                    <ul>
+                        <li><b>Goal:</b> Map all blur types onto a unified perceptual severity scale.</li>
+                        <li><b>Procedure:</b> Image A contains a fixed <i>target blur</i> (e.g., complex motion blur). Image B contains an <i>adjustable blur</i> reference (e.g., Gaussian <code>&sigma;</code>).</li>
+                        <li><b>Action:</b> The participant adjusts Image B until its perceived severity equals Image A.</li>
+                        <li><b>Output:</b> Differentiates between detectability thresholds (Task 1) and actual perceived magnitude of the degradation (Task 2).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-3" class="step-content">
+            <div class="content-header">
+                <h2 style="color: var(--step3);">3. Predictive Modeling</h2>
+                <p>Training a multi-input Convolutional Neural Network (CNN) to jointly predict detectability and perceived severity.</p>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="info-card">
+                    <h3>Siamese Feature Extraction</h3>
+                    <ul>
+                        <li><b>Image Encoders:</b> Two branches utilize a shared CNN backbone (e.g., ResNet) to extract high-dimensional spatial features.</li>
+                        <li><b>Metadata MLP:</b> A dense feed-forward network encodes explicit scalar parameters (blur type, magnitude).</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Multi-Task Outputs & Loss</h3>
+                    <ul>
+                        <li><b>Detection Head (Sigmoid):</b> Predicts probability of noticeability <code>p_detect</code>. Supervised via Binary Cross-Entropy (BCE) Loss against 2AFC targets.</li>
+                        <li><b>Severity Head (Linear):</b> Predicts continuous perceptual magnitude <code>s_blur</code>. Supervised via Mean Squared Error (MSE) Loss against matching task targets.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card" style="grid-column: span 2;">
+                    <h3>Model Architecture Design</h3>
+                    <p style="margin-top: 0; color: var(--text-muted); font-size: 14px;">The network processes visual inputs via Siamese Convolutional Encoders and Contextual Metadata via an MLP, fusing the representations to jointly predict detection and severity while calculating loss directly against human ground-truth data.</p>
+                    <img src="blurmodel_architecture.png" alt="Updated PBP-NET Architecture Diagram with Loss Calculation" class="architecture-img">
+                </div>
+            </div>
+        </div>
+
+        <div id="content-4" class="step-content">
+            <div class="content-header">
+                <h2 style="color: var(--step4);">4. Application & Guide Correction</h2>
+                <p>Operationalizing the trained perceptual model to dynamically flag and correct artifacts in display software.</p>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="info-card">
+                    <h3>Blur Saliency Mapping</h3>
+                    <ul>
+                        <li>Divide standard display output into a grid of overlapping patches.</li>
+                        <li><b>Patch parameters:</b> <code>64x64</code> pixels, stride <code>32</code> pixels.</li>
+                        <li>Feed patches into the trained CNN to obtain local <code>p_detect</code> and <code>s_blur</code> predictions.</li>
+                        <li>Flag visually noticeable patches where <code>p_detect > 0.75</code>.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Targeted Mitigation Rules</h3>
+                    <ul>
+                        <li><b>Defocus-like blur:</b> Apply Wiener or Richardson-Lucy deconvolution based on estimated kernel width.</li>
+                        <li><b>Motion blur:</b> Apply directional deconvolution based on the network's metadata orientation inference.</li>
+                        <li><b>Rendering blur:</b> Trigger super-resolution models or adaptive sharpening filters to restore high frequencies.</li>
+                    </ul>
+                </div>
+
+                <div class="info-card" style="grid-column: span 2;">
+                    <h3>Validation Loop</h3>
+                    <ul>
+                        <li>Corrections are heavily localized only to flagged patches, saving vast computational resources compared to global processing.</li>
+                        <li>After applying a localized filter (e.g., directional deblurring), the corrected patch is fed back through the perceptual model.</li>
+                        <li>The system confirms that the new <code>p_detect</code> value drops below the visibility threshold, ensuring perceptual improvement without over-sharpening artifacts.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple script to handle tab switching
+        const buttons = document.querySelectorAll('.step-btn');
+        const contents = document.querySelectorAll('.step-content');
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and contents
+                buttons.forEach(btn => btn.classList.remove('active'));
+                contents.forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked button
+                button.classList.add('active');
+
+                // Show corresponding content
+                const step = button.getAttribute('data-step');
+                document.getElementById(`content-${step}`).classList.add('active');
+            });
+        });
+    </script>
+
+</body>
+</html>
