@@ -2,9 +2,9 @@
 
 This repository hosts a website describing an experiment idea for studying perceptual blur in image and display systems.
 
-The purpose of the site is to explain a proposed experiment for understanding the kinds of blur users may experience, when those blur artifacts become visible, and how severe they appear to human observers.
+The experiment is intended to investigate the kinds of blur users may experience, when those blur artifacts become visible, and how severe they appear to human observers.
 
-The project explores how different sources of blur can be simulated, measured with human observers, and modeled computationally. The central idea is to connect physical blur parameters, such as defocus, motion blur, or resampling blur, to perceptual judgments of visibility and severity.
+To explore this, I explore how blur can be simulated, measured with human observers, and modeled computationally. The central idea is to connect physical blur parameters, such as defocus, motion blur, or resampling blur, to perceptual judgments of visibility and severity.
 
 The website presents a proposed pipeline with four stages:
 
