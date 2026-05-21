@@ -15,9 +15,9 @@ This site is meant to serve as a visual overview of the experiment concept. It i
 
 ## Website
 
-This project is designed to be hosted with GitHub Pages.
+Access the website here: https://dennisp7.github.io/blur_artifact_experiment/
 
 ## Files
 
 - `index.html` contains the main website.
-- Supporting images or assets can be placed in the repository root or in an `assets/` folder.
+- Supporting images or assets are stored in the `assets/` folder.
