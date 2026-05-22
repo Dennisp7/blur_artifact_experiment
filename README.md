@@ -2,18 +2,20 @@
 
 This repository hosts a website describing an experiment idea for studying perceptual blur in image and display systems.
 
-The experiment is intended to understand the kinds of blur users may experience, when those blur artifacts become visible, and how severe they appear to human observers.
+The goal of the experiment is to understand which blur artifacts users can perceive, how severe those artifacts appear, and how this information can be used to prioritize image correction.
 
-To investigate this, I simulate different kinds of blur amd measure human perception through a psychophysical task where users must indicate blur severity by adjusting blur paramter knobs to match the target blurred image. The responses are collected and saved as metadata that will be used as ground truth to a computational model that will predict whether a user will detect blur and to what severity. 
+The proposed experiment has two main parts. First, different types of blur are simulated and applied to sharp reference images. These blur types may include defocus blur, motion blur, and blur caused by rendering or resampling. Second, human observers complete psychophysical tasks that measure whether they can detect the blur and how severe the blur appears.
 
-The central idea is to connect physical blur parameters, such as defocus, motion blur, or resampling blur, to perceptual judgments of visibility and severity.
+The human responses provide the ground truth for the model. For each blurred image, the ground truth can include whether the blur was visible to observers and the perceived severity of the blur. The model is then trained to predict these perceptual measurements from the image content and blur parameters.
 
-The website presents a proposed pipeline with four stages:
+Once trained, the model can be used to evaluate new images or display outputs. It can predict which blur artifacts are likely to be visible, how severe they are likely to appear, and which types of blur are most common or most perceptually important. This makes it possible to focus correction efforts on the artifacts that are most likely to affect the user experience.
+
+The website presents the proposed pipeline in four stages:
 
 1. Generate controlled blur stimuli from sharp reference images
-2. Measure human detection thresholds and perceived blur severity
-3. Train a predictive model that estimates blur visibility from image content and blur metadata
-4. Use the model to identify where blur is likely to be noticeable and guide targeted correction
+2. Measure human blur detection and perceived severity using psychophysical experiments
+3. Train a model to predict human perceptual judgments from image content and blur metadata
+4. Use the model predictions to identify the most important blur artifacts and guide targeted correction
 
 This site serves as a visual overview of the experiment concept. It is not intended to be a full implementation of the pipeline yet.
 
